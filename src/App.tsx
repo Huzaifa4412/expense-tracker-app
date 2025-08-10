@@ -9,38 +9,57 @@ interface Transaction {
 	expense: number;
 }
 
+interface State {
+	title: string;
+	amount: string;
+	totalAmount: number;
+	type: string;
+	earning: number;
+	expense: number;
+}
+
+// Reducer initial state
+const initialState: State = {
+	title: "",
+	amount: "0",
+	totalAmount: 0,
+	type: "",
+	earning: 0,
+	expense: 0,
+};
+
 const App = () => {
 	const [transactions, setTransactions] = useState<Transaction[]>([]);
+	const [state, dispatch] = useReducer(reducer, initialState);
 	const [editID, setEditID] = useState<string | null>(null);
 
-	// 1️⃣ Read from localStorage on mount
+	// Load transactions + state from localStorage
 	useEffect(() => {
-		const saved = localStorage.getItem("transactions");
-		if (saved) {
-			setTransactions(JSON.parse(saved));
+		const storedTransactions = localStorage.getItem("transactions");
+		const storedState = localStorage.getItem("trackerState");
+
+		if (storedTransactions) setTransactions(JSON.parse(storedTransactions));
+		if (storedState) {
+			const parsedState = JSON.parse(storedState);
+			dispatch({ type: "load_state", payload: parsedState });
 		}
 	}, []);
 
-	// 2️⃣ Save to localStorage whenever transactions change
+	// Save transactions when updated
 	useEffect(() => {
 		localStorage.setItem("transactions", JSON.stringify(transactions));
 	}, [transactions]);
 
-	// Reducer initial state
-	const initialState = {
-		title: "",
-		amount: "0",
-		totalAmount: 0,
-		type: "",
-		earning: 0,
-		expense: 0,
-	};
+	// Save reducer state when updated
+	useEffect(() => {
+		localStorage.setItem("trackerState", JSON.stringify(state));
+	}, [state]);
 
 	// Reducer logic
 	function reducer(
-		state: typeof initialState,
-		action: { type: string; payload: string }
-	) {
+		state: State,
+		action: { type: string; payload?: any }
+	): State {
 		switch (action.type) {
 			case "set_earning":
 				return {
@@ -74,17 +93,16 @@ const App = () => {
 				return { ...state, type: action.payload };
 			case "reset":
 				return initialState;
+			case "load_state":
+				return { ...state, ...action.payload };
 			default:
 				return state;
 		}
 	}
 
-	const [state, dispatch] = useReducer(reducer, initialState);
-
 	// Generate unique ID
-	const generateID = () => {
-		return Date.now().toString(36) + Math.random().toString(36);
-	};
+	const generateID = () =>
+		Date.now().toString(36) + Math.random().toString(36);
 
 	// Delete transaction
 	const deleteHandler = (elemID: string, type: string) => {
@@ -115,24 +133,23 @@ const App = () => {
 		e.preventDefault();
 
 		if (editID) {
-			// Find old transaction
 			const oldTransaction = transactions.find((t) => t.id === editID);
 			if (!oldTransaction) return;
 
-			// Step 1: Remove old amount
+			// Remove old amount
 			dispatch({
 				type: `set_del_amount_${oldTransaction.type}`,
 				payload: oldTransaction.amount,
 			});
 
-			// Step 2: Add new amount
+			// Add new amount
 			if (state.type === "earning") {
 				dispatch({ type: "set_earning", payload: state.amount });
 			} else if (state.type === "expense") {
 				dispatch({ type: "set_expense", payload: state.amount });
 			}
 
-			// Step 3: Update array
+			// Update array
 			setTransactions((prev) =>
 				prev.map((t) =>
 					t.id === editID
@@ -207,7 +224,7 @@ const App = () => {
 						<button
 							onClick={() => {
 								setTransactions([]);
-								dispatch({ type: "reset", payload: "" });
+								dispatch({ type: "reset" });
 							}}
 							className="clear-btn bg-red-500 px-4 py-2 rounded-full">
 							Clear All
