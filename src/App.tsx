@@ -1,4 +1,4 @@
-import React, { useReducer, useState } from "react";
+import React, { useEffect, useReducer, useState } from "react";
 
 interface Transaction {
 	title: string;
@@ -12,6 +12,19 @@ interface Transaction {
 const App = () => {
 	const [transactions, setTransactions] = useState<Transaction[]>([]);
 	const [editID, setEditID] = useState<string | null>(null);
+
+	// 1️⃣ Read from localStorage on mount
+	useEffect(() => {
+		const saved = localStorage.getItem("transactions");
+		if (saved) {
+			setTransactions(JSON.parse(saved));
+		}
+	}, []);
+
+	// 2️⃣ Save to localStorage whenever transactions change
+	useEffect(() => {
+		localStorage.setItem("transactions", JSON.stringify(transactions));
+	}, [transactions]);
 
 	// Reducer initial state
 	const initialState = {
